@@ -1,4 +1,5 @@
 use std::net::TcpStream;
+use crate::network::TcpServer;
 use crate::packet::Packet;
 use crate::packet::types::PacketStructure;
 use crate::protocol::ProtocolState;
