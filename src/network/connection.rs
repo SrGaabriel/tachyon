@@ -29,3 +29,5 @@ impl PlayerConnection {
         packet.write(&mut self.stream);
     }
 }
+
+unsafe impl Send for PlayerConnection {}

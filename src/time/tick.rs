@@ -14,12 +14,12 @@ impl GameTimeManager {
         }
     }
 
-    pub(crate) fn start(&mut self, server: &TachyonServer) {
+    pub(crate) fn start(&mut self, scheduler: &TaskScheduler) {
         self.start_time = Some(Instant::now());
         tokio::spawn(async move {
             let mut tick = 0u64;
             loop {
-                server.scheduler.get_tasks().iter_mut().for_each(|task| {
+                scheduler.get_tasks().iter_mut().for_each(|task| {
                     if task.repeat_interval.is_some() {
                         let is_interval = tick % task.repeat_interval.unwrap() == 0;
                         if is_interval {
