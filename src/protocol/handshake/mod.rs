@@ -7,7 +7,7 @@ use crate::packet::types::string::MinecraftString;
 use crate::packet::types::varint::MinecraftVarInt;
 use crate::protocol::{ProtocolHandler, ProtocolState};
 
-define_packet!(0x00, HandshakePacket {
+define_packet!(0x00, ServerboundHandshakePacket {
     protocol_version: MinecraftVarInt,
     server_address: MinecraftString,
     server_port: MinecraftUnsignedShort,
@@ -30,7 +30,7 @@ impl ProtocolHandler for HandshakeRequestHandler {
     }
 
     fn handle_packet(&self, packet: &mut Packet, connection: &mut PlayerConnection) {
-        let handshake_packet = HandshakePacket::read(&mut packet.data);
+        let handshake_packet = ServerboundHandshakePacket::read(&mut packet.data);
         connection.connection_info = Some(ConnectionInfo {
             protocol_version: handshake_packet.protocol_version.into(),
             server_address: handshake_packet.server_address.into(),

@@ -8,6 +8,14 @@ macro_rules! define_packet {
             $(pub $field: $field_type),*
         }
 
+        impl $struct_name {
+            pub fn to_packet(&self) -> crate::packet::Packet {
+                let mut data = Vec::new();
+                self.write(&mut data);
+                crate::packet::Packet::new($id, data)
+            }
+        }
+
         impl crate::packet::types::PacketStructure<$struct_name> for $struct_name {
             fn read(buffer: &mut dyn std::io::Read) -> Self {
                 $struct_name {

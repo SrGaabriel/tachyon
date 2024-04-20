@@ -1,4 +1,5 @@
 use std::net::TcpStream;
+
 use crate::packet::Packet;
 use crate::packet::types::PacketStructure;
 use crate::protocol::ProtocolState;
@@ -26,5 +27,9 @@ impl PlayerConnection {
 
     pub fn dispatch(&mut self, packet: &mut Packet) {
         packet.write(&mut self.stream);
+    }
+
+    pub fn close_gracefully(&mut self) {
+        self.stream.shutdown(std::net::Shutdown::Both).unwrap();
     }
 }

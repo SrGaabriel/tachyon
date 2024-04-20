@@ -1,10 +1,12 @@
+use std::cmp::Ordering;
+
+use crate::network::connection::PlayerConnection;
+use crate::packet::Packet;
+
 pub mod status;
 pub mod handshake;
-
-use std::cmp::Ordering;
-use crate::network::connection::PlayerConnection;
-use crate::network::writer::NetworkWriter;
-use crate::packet::Packet;
+pub mod login;
+mod play;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ProtocolState {

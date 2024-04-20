@@ -7,7 +7,7 @@ use crate::protocol::{ProtocolHandler, ProtocolState};
 
 pub(crate) struct StatusRequestHandler;
 
-define_packet!(0x01, ServerboundStatusResponsePacket {
+define_packet!(0x00, ClientboundStatusPacket {
     data: MinecraftString
 });
 
@@ -17,7 +17,7 @@ impl ProtocolHandler for StatusRequestHandler {
     }
 
     fn ids(&self) -> Vec<i32> {
-        vec![0x00]
+        vec![0x00, 0x01]
     }
 
     fn state(&self) -> ProtocolState {
@@ -25,8 +25,13 @@ impl ProtocolHandler for StatusRequestHandler {
     }
 
     fn handle_packet(&self, packet: &mut Packet, connection: &mut PlayerConnection) {
-        println!("Received status request packet with id: {}", packet.id);
-        let response = ServerboundStatusResponsePacket {
+        if packet.id == 0x01 {
+            connection.dispatch(packet);
+            connection.close_gracefully();
+            return;
+        }
+
+        let response = ClientboundStatusPacket {
             data: MinecraftString::from(r#"{
             "version": {
                 "name": "1.19.4",
@@ -50,6 +55,8 @@ impl ProtocolHandler for StatusRequestHandler {
             "previewsChat": true
         }"#.to_string())
         };
-        response.write(&mut connection.stream)
+        // Send packet id, length, and data
+        println!("Sending status response packet with id: {}", response.to_packet().id);
+        connection.dispatch(&mut response.to_packet());
     }
 }

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::io::{Read, Write};
+
 use crate::packet::types::PacketStructure;
 use crate::packet::types::varint::MinecraftVarInt;
 

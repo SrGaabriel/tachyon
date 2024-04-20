@@ -2,25 +2,24 @@ use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::net::SocketAddr;
 use std::rc::Rc;
 
 use crate::network::connection::PlayerConnection;
-use crate::network::writer::NetworkWriter;
 use crate::packet::Packet;
 use crate::packet::types::PacketStructure;
 use crate::protocol::ProtocolHandler;
 
-pub mod writer;
 pub mod connection;
 
 pub struct TcpServer {
-    address: String,
-    connections: HashMap<String, Rc<RefCell<PlayerConnection>>>,
+    address: SocketAddr,
+    connections: HashMap<SocketAddr, Rc<RefCell<PlayerConnection>>>,
     handlers: Vec<Box<dyn ProtocolHandler>>,
 }
 
 impl TcpServer {
-    pub fn new(address: String) -> Self {
+    pub fn new(address: SocketAddr) -> Self {
         TcpServer {
             address,
             connections: HashMap::new(),
@@ -33,38 +32,26 @@ impl TcpServer {
     }
 
     pub fn call_handlers(&self, mut packet: Packet, connection: Rc<RefCell<PlayerConnection>>) {
-        let mut handlers = self.handlers.iter().map(|handler| handler.clone()).collect::<Vec<_>>();
+        let state = connection.borrow().state;
+        let mut handlers = self.handlers.iter().collect::<Vec<_>>();
         handlers.sort_by(|a, b| a.priority().cmp(&b.priority()));
         handlers.iter().for_each(|handler| {
-            if handler.state() == connection.borrow().state {
+            if handler.state() == state && handler.ids().contains(&packet.id) {
                 handler.handle_packet(&mut packet, &mut connection.borrow_mut());
             }
         });
     }
 
     pub fn start(&mut self) {
-        let listener = std::net::TcpListener::bind(&self.address).unwrap();
+        let listener = std::net::TcpListener::bind(self.address).unwrap();
         println!("Starting server on {}", self.address);
 
-        let mut connections = self.connections.clone();  // Clone self.connections
-
-        for stream in listener.incoming() {
-            let stream = stream.unwrap();
-            let ip = stream.peer_addr().unwrap().to_string();
-            let connection = connections.entry(ip.clone()).or_insert_with(|| {
-                Rc::new(RefCell::new(PlayerConnection::new(stream.try_clone().unwrap())))
-            });
-            connection.borrow_mut().stream = stream.try_clone().unwrap();
-            self.handle_client(Rc::clone(connection), stream);
-            // if connection_option.is_none() {
-            //     let connection = Rc::new(RefCell::new(PlayerConnection::new(stream.try_clone().unwrap())));
-            //     connections.insert(ip.clone(), Rc::clone(&connection));
-            //     self.handle_client(Rc::clone(&connection), stream);
-            // } else {
-            //     let connection = connection_option.unwrap();
-            //     connection.borrow_mut().stream = stream.try_clone().unwrap();
-            //     self.handle_client(Rc::clone(connection), stream);
-            // }
+        loop {
+            let (stream, peer) = listener.accept().unwrap();
+            stream.set_nodelay(false).expect("Failed to set nodelay on stream");
+            let connection = Rc::new(RefCell::new(PlayerConnection::new(stream.try_clone().unwrap())));
+            self.connections.insert(peer, Rc::clone(&connection));
+            self.handle_client(Rc::clone(&connection), stream);
         }
     }
 
@@ -77,6 +64,7 @@ impl TcpServer {
             }
 
             let packet = Packet::read(&mut &buffer[..bytes_read]);
+            println!("Received packet with id: {}", packet.id);
             self.call_handlers(packet, Rc::clone(&connection));
         }
     }

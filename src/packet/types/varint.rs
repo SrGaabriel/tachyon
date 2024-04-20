@@ -26,29 +26,31 @@ pub const CONTINUE_BIT: i32 = 0x80;
 
 impl PacketStructure<i32> for MinecraftVarInt {
     fn read(buffer: &mut dyn Read) -> Self {
-        let mut value = 0;
-        let mut pos = 0;
-        let mut byte = [0; 1];
+        let mut value: u32 = 0;
+        let mut position: u32 = 0;
+        let mut current_byte: [u8; 1] = [0];
 
         loop {
-            buffer.read_exact(&mut byte).unwrap();
-            let byte = byte[0] as i32;
+            match buffer.read_exact(&mut current_byte) {
+                Ok(_) => {
+                    let current_byte = current_byte[0];
+                    value |= (current_byte as u32 & SEGMENT_BITS as u32) << position;
 
-            value |= (byte & SEGMENT_BITS) << pos;
+                    if (current_byte as i32 & CONTINUE_BIT) == 0 {
+                        break;
+                    }
 
-            if byte & CONTINUE_BIT == 0 {
-                break;
-            }
+                    position += 7;
 
-            pos += 7;
-
-            if pos > 32 {
-                panic!("VarInt is too big");
+                    if position >= 32 {
+                        panic!("VarInt is too big");
+                    }
+                }
+                Err(e) => panic!("Failed to read VarInt: {}", e)
             }
         }
-
         MinecraftVarInt {
-            value
+            value: value as i32
         }
     }
 
@@ -71,14 +73,49 @@ impl MinecraftVarInt {
     pub fn size(value: i32) -> usize {
         let mut value = value;
         let mut size = 0;
+
         loop {
-            let byte = (value & SEGMENT_BITS) as u8;
-            value >>= 7;
             size += 1;
+            value >>= 7;
+
             if value == 0 {
                 break;
             }
         }
+
         size
+    }
+}
+
+#[derive(Debug)]
+pub struct MinecraftInt {
+    pub value: i32
+}
+
+impl Into<i32> for MinecraftInt {
+    fn into(self) -> i32 {
+        self.value
+    }
+}
+
+impl From<i32> for MinecraftInt {
+    fn from(value: i32) -> Self {
+        MinecraftInt {
+            value
+        }
+    }
+}
+
+impl PacketStructure<i32> for MinecraftInt {
+    fn read(buffer: &mut dyn Read) -> Self {
+        let mut value: [u8; 4] = [0; 4];
+        buffer.read_exact(&mut value).unwrap();
+        MinecraftInt {
+            value: i32::from_be_bytes(value)
+        }
+    }
+
+    fn write(&self, buffer: &mut dyn Write) {
+        buffer.write_all(&self.value.to_be_bytes()).unwrap();
     }
 }
