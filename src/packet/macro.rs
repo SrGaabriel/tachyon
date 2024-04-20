@@ -8,23 +8,25 @@ macro_rules! define_packet {
             $(pub $field: $field_type),*
         }
 
-        impl $struct_name {
-            pub fn to_packet(&self) -> crate::packet::Packet {
+        impl crate::packet::PacketDefinition for $struct_name {
+            fn get_id() -> i32 {
+                $id
+            }
+
+            fn write_data(&self, buffer: &mut dyn std::io::Write) {
+                $(self.$field.write_packet_data(buffer);)*
+            }
+
+            fn read_data(buffer: &mut dyn std::io::Read) -> Result<Self, crate::packet::ParsePacketError> {
+                Ok($struct_name {
+                    $($field: <$field_type as PacketStructure>::from_packet_data(buffer)?),*
+                })
+            }
+
+            fn to_packet(&self) -> Packet {
                 let mut data = Vec::new();
-                self.write(&mut data);
-                crate::packet::Packet::new($id, data)
-            }
-        }
-
-        impl crate::packet::types::PacketStructure<$struct_name> for $struct_name {
-            fn read(buffer: &mut dyn std::io::Read) -> Self {
-                $struct_name {
-                    $($field: <$field_type>::read(buffer)),*
-                }
-            }
-
-            fn write(&self, buffer: &mut dyn std::io::Write) {
-                $(self.$field.write(buffer));*
+                self.write_data(&mut data);
+                Packet::new($id, data)
             }
         }
     };

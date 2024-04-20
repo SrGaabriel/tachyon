@@ -1,60 +1,41 @@
 use std::io::{Read, Write};
 
+use crate::packet::ParsePacketError;
 use crate::packet::types::PacketStructure;
-
-#[derive(Debug)]
-pub struct MinecraftVarInt {
-    pub value: i32
-}
-
-impl Into<i32> for MinecraftVarInt {
-    fn into(self) -> i32 {
-        self.value
-    }
-}
-
-impl From<i32> for MinecraftVarInt {
-    fn from(value: i32) -> Self {
-        MinecraftVarInt {
-            value
-        }
-    }
-}
 
 pub const SEGMENT_BITS: i32 = 0x7F;
 pub const CONTINUE_BIT: i32 = 0x80;
 
-impl PacketStructure<i32> for MinecraftVarInt {
-    fn read(buffer: &mut dyn Read) -> Self {
+#[derive(Debug)]
+pub struct VarInt {
+    pub value: i32
+}
+
+impl PacketStructure for VarInt {
+    fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> {
         let mut value: u32 = 0;
         let mut position: u32 = 0;
         let mut current_byte: [u8; 1] = [0];
 
         loop {
-            match buffer.read_exact(&mut current_byte) {
-                Ok(_) => {
-                    let current_byte = current_byte[0];
-                    value |= (current_byte as u32 & SEGMENT_BITS as u32) << position;
+            buffer.read_exact(&mut current_byte)?;
+            let current_byte = current_byte[0];
+            value |= (current_byte as u32 & SEGMENT_BITS as u32) << position;
 
-                    if (current_byte as i32 & CONTINUE_BIT) == 0 {
-                        break;
-                    }
+            if (current_byte as i32 & CONTINUE_BIT) == 0 {
+                break;
+            }
 
-                    position += 7;
+            position += 7;
 
-                    if position >= 32 {
-                        panic!("VarInt is too big");
-                    }
-                }
-                Err(e) => panic!("Failed to read VarInt: {}", e)
+            if position >= 32 {
+                panic!("VarInt is too big");
             }
         }
-        MinecraftVarInt {
-            value: value as i32
-        }
+        Ok(VarInt { value: value as i32 })
     }
 
-    fn write(&self, buffer: &mut dyn Write) {
+    fn write_packet_data(&self, buffer: &mut dyn Write) {
         let mut value = self.value;
 
         loop {
@@ -69,7 +50,7 @@ impl PacketStructure<i32> for MinecraftVarInt {
     }
 }
 
-impl MinecraftVarInt {
+impl VarInt {
     pub fn size(value: i32) -> usize {
         let mut value = value;
         let mut size = 0;
@@ -87,35 +68,28 @@ impl MinecraftVarInt {
     }
 }
 
-#[derive(Debug)]
-pub struct MinecraftInt {
-    pub value: i32
-}
-
-impl Into<i32> for MinecraftInt {
+impl Into<i32> for VarInt {
     fn into(self) -> i32 {
         self.value
     }
 }
 
-impl From<i32> for MinecraftInt {
+impl From<i32> for VarInt {
     fn from(value: i32) -> Self {
-        MinecraftInt {
+        VarInt {
             value
         }
     }
 }
 
-impl PacketStructure<i32> for MinecraftInt {
-    fn read(buffer: &mut dyn Read) -> Self {
+impl PacketStructure for i32 {
+    fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> {
         let mut value: [u8; 4] = [0; 4];
         buffer.read_exact(&mut value).unwrap();
-        MinecraftInt {
-            value: i32::from_be_bytes(value)
-        }
+        Ok(i32::from_be_bytes(value))
     }
 
-    fn write(&self, buffer: &mut dyn Write) {
-        buffer.write_all(&self.value.to_be_bytes()).unwrap();
+    fn write_packet_data(&self, buffer: &mut dyn Write) {
+        buffer.write_all(&self.to_be_bytes()).unwrap();
     }
 }

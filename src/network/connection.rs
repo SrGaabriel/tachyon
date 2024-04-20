@@ -1,7 +1,6 @@
 use std::net::TcpStream;
 
 use crate::packet::Packet;
-use crate::packet::types::PacketStructure;
 use crate::protocol::ProtocolState;
 
 pub struct PlayerConnection {

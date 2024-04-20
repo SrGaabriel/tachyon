@@ -1,10 +1,39 @@
 use std::io::{Cursor, Read, Write};
 
 use crate::packet::types::PacketStructure;
-use crate::packet::types::varint::MinecraftVarInt;
+use crate::packet::types::varint::VarInt;
 
 pub mod types;
 mod r#macro;
+
+#[derive(Debug)]
+pub struct ParsePacketError {
+    pub message: String
+}
+
+impl From<std::io::Error> for ParsePacketError {
+    fn from(error: std::io::Error) -> Self {
+        ParsePacketError {
+            message: error.to_string()
+        }
+    }
+}
+
+impl From<std::string::FromUtf8Error> for ParsePacketError {
+    fn from(error: std::string::FromUtf8Error) -> Self {
+        ParsePacketError {
+            message: error.to_string()
+        }
+    }
+}
+
+impl ParsePacketError {
+    pub fn new(message: String) -> Self {
+        ParsePacketError {
+            message
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Packet {
@@ -15,7 +44,7 @@ pub struct Packet {
 
 impl Packet {
     pub fn new(id: i32, data: Vec<u8>) -> Self {
-        let length = MinecraftVarInt::size(id) + data.len();
+        let length = VarInt::size(id) + data.len();
         let data = Cursor::new(data);
 
         Packet {
@@ -25,29 +54,23 @@ impl Packet {
         }
     }
 
-    pub fn as_struct<T: PacketStructure<T>>(&self) -> T {
-        T::read(&mut self.data.clone())
-    }
-}
+    pub fn parse(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> {
+        let length = <VarInt as Into<i32>>::into(VarInt::from_packet_data(buffer)?) as usize;
+        let id = VarInt::from_packet_data(buffer)?.into();
 
-impl PacketStructure<Packet> for Packet {
-    fn read(buffer: &mut dyn Read) -> Self {
-        let length = <MinecraftVarInt as Into<i32>>::into(MinecraftVarInt::read(buffer)) as usize;
-        let id = MinecraftVarInt::read(buffer).into();
-
-        let mut data = vec![0; length - MinecraftVarInt::size(id)];
+        let mut data = vec![0; length - VarInt::size(id)];
         buffer.read_exact(&mut data).unwrap();
 
-        Packet {
+        Ok(Packet {
             length,
             id,
             data: Cursor::new(data)
-        }
+        })
     }
 
-    fn write(&self, buffer: &mut dyn Write) {
-        MinecraftVarInt::from(self.length as i32).write(buffer);
-        MinecraftVarInt::from(self.id).write(buffer);
+    pub fn write(&self, buffer: &mut dyn Write) {
+        VarInt::from(self.length as i32).write_packet_data(buffer);
+        VarInt::from(self.id).write_packet_data(buffer);
         buffer.write_all(&self.data.get_ref()).unwrap();
     }
 }
@@ -59,7 +82,7 @@ pub trait PacketDefinition {
         panic!("Packet {} does not implement write_data", Self::get_id());
     }
 
-    fn read_data(buffer: &mut dyn Read) -> Self where Self: Sized {
+    fn read_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> where Self: Sized {
         panic!("Packet {} does not implement read_data", Self::get_id());
     }
 

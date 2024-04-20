@@ -1,17 +1,15 @@
 use crate::define_packet;
 use crate::network::connection::{ConnectionInfo, PlayerConnection};
-use crate::packet::Packet;
-use crate::packet::types::numbers::MinecraftUnsignedShort;
+use crate::packet::{Packet, PacketDefinition};
 use crate::packet::types::PacketStructure;
-use crate::packet::types::string::MinecraftString;
-use crate::packet::types::varint::MinecraftVarInt;
+use crate::packet::types::varint::VarInt;
 use crate::protocol::{ProtocolHandler, ProtocolState};
 
 define_packet!(0x00, ServerboundHandshakePacket {
-    protocol_version: MinecraftVarInt,
-    server_address: MinecraftString,
-    server_port: MinecraftUnsignedShort,
-    next_state: MinecraftVarInt
+    protocol_version: VarInt,
+    server_address: String,
+    server_port: u16,
+    next_state: VarInt
 });
 
 pub(crate) struct HandshakeRequestHandler;
@@ -30,11 +28,12 @@ impl ProtocolHandler for HandshakeRequestHandler {
     }
 
     fn handle_packet(&self, packet: &mut Packet, connection: &mut PlayerConnection) {
-        let handshake_packet = ServerboundHandshakePacket::read(&mut packet.data);
+        let handshake_packet = ServerboundHandshakePacket::read_data(&mut packet.data)
+            .expect("Failed to read handshake packet");
         connection.connection_info = Some(ConnectionInfo {
             protocol_version: handshake_packet.protocol_version.into(),
-            server_address: handshake_packet.server_address.into(),
-            server_port: handshake_packet.server_port.into()
+            server_address: handshake_packet.server_address,
+            server_port: handshake_packet.server_port
         });
         connection.state = ProtocolState::from_id(handshake_packet.next_state.into());
     }

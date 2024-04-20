@@ -1,13 +1,11 @@
 use std::cell::RefCell;
-use std::cmp::PartialEq;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::SocketAddr;
 use std::rc::Rc;
 
 use crate::network::connection::PlayerConnection;
 use crate::packet::Packet;
-use crate::packet::types::PacketStructure;
 use crate::protocol::ProtocolHandler;
 
 pub mod connection;
@@ -63,7 +61,7 @@ impl TcpServer {
                 break;
             }
 
-            let packet = Packet::read(&mut &buffer[..bytes_read]);
+            let packet = Packet::parse(&mut &buffer[..bytes_read]).expect("Failed to parse packet");
             println!("Received packet with id: {}", packet.id);
             self.call_handlers(packet, Rc::clone(&connection));
         }

@@ -1,40 +1,15 @@
 use std::io::{Read, Write};
-use crate::packet::types::byte::MinecraftByte;
+
+use crate::packet::ParsePacketError;
 use crate::packet::types::PacketStructure;
 
-#[derive(Debug)]
-pub struct MinecraftBoolean {
-    pub value: bool
-}
-
-impl Into<bool> for MinecraftBoolean {
-    fn into(self) -> bool {
-        self.value
-    }
-}
-
-impl From<bool> for MinecraftBoolean {
-    fn from(value: bool) -> Self {
-        MinecraftBoolean {
-            value
-        }
-    }
-}
-
-impl PacketStructure<bool> for MinecraftBoolean {
-    fn read(buffer: &mut dyn Read) -> Self {
-        let byte = MinecraftByte::read(buffer);
-        MinecraftBoolean {
-            value: byte.value == 1
-        }
+impl PacketStructure for bool {
+    fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> {
+        let byte = u8::from_packet_data(buffer)?;
+        Ok(byte != 0)
     }
 
-    fn write(&self, buffer: &mut dyn Write) {
-        let byte = if self.value {
-            MinecraftByte::from(1)
-        } else {
-            MinecraftByte::from(0)
-        };
-        byte.write(buffer);
+    fn write_packet_data(&self, buffer: &mut dyn Write) {
+        (*self as u8).write_packet_data(buffer);
     }
 }

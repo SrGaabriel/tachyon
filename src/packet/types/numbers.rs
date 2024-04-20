@@ -1,38 +1,16 @@
 use std::io::{Read, Write};
 
+use crate::packet::ParsePacketError;
 use crate::packet::types::PacketStructure;
 
-#[derive(Debug)]
-pub struct MinecraftUnsignedShort {
-    value: u16,
-}
-
-impl Into<u16> for MinecraftUnsignedShort {
-    fn into(self) -> u16 {
-        self.value
-    }
-}
-
-impl From<u16> for MinecraftUnsignedShort {
-    fn from(value: u16) -> Self {
-        MinecraftUnsignedShort {
-            value
-        }
-    }
-}
-
-impl PacketStructure<u16> for MinecraftUnsignedShort {
-    fn read(buffer: &mut dyn Read) -> Self {
+impl PacketStructure for u16 {
+    fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> {
         let mut bytes = [0; 2];
-        buffer.read_exact(&mut bytes).unwrap();
-        let value = u16::from_be_bytes(bytes);
-
-        MinecraftUnsignedShort {
-            value
-        }
+        buffer.read_exact(&mut bytes)?;
+        Ok(u16::from_be_bytes(bytes))
     }
 
-    fn write(&self, buffer: &mut dyn Write) {
-        buffer.write_all(&self.value.to_be_bytes()).unwrap();
+    fn write_packet_data(&self, buffer: &mut dyn Write) {
+        buffer.write_all(&self.to_be_bytes()).unwrap();
     }
 }
