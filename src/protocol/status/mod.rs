@@ -3,6 +3,7 @@ use crate::network::connection::PlayerConnection;
 use crate::packet::{Packet, PacketDefinition};
 use crate::packet::types::PacketStructure;
 use crate::protocol::{ProtocolHandler, ProtocolState};
+use crate::server::TachyonServer;
 
 pub(crate) struct StatusRequestHandler;
 
@@ -11,10 +12,6 @@ define_packet!(0x00, ClientboundStatusPacket {
 });
 
 impl ProtocolHandler for StatusRequestHandler {
-    fn new() -> Self {
-        StatusRequestHandler
-    }
-
     fn ids(&self) -> Vec<i32> {
         vec![0x00, 0x01]
     }
@@ -23,7 +20,7 @@ impl ProtocolHandler for StatusRequestHandler {
         ProtocolState::Status
     }
 
-    fn handle_packet(&self, packet: &mut Packet, connection: &mut PlayerConnection) {
+    fn handle_packet(&self, server: &mut TachyonServer, connection: &mut PlayerConnection, packet: &mut Packet) {
         if packet.id == 0x01 {
             connection.dispatch(packet);
             connection.close_gracefully();

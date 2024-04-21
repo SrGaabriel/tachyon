@@ -4,6 +4,7 @@ use crate::packet::{Packet, PacketDefinition};
 use crate::packet::types::PacketStructure;
 use crate::packet::types::varint::VarInt;
 use crate::protocol::{ProtocolHandler, ProtocolState};
+use crate::server::TachyonServer;
 
 define_packet!(0x00, ServerboundHandshakePacket {
     protocol_version: VarInt,
@@ -15,10 +16,6 @@ define_packet!(0x00, ServerboundHandshakePacket {
 pub(crate) struct HandshakeRequestHandler;
 
 impl ProtocolHandler for HandshakeRequestHandler {
-    fn new() -> Self {
-        HandshakeRequestHandler
-    }
-
     fn ids(&self) -> Vec<i32> {
         vec![0x00]
     }
@@ -27,7 +24,7 @@ impl ProtocolHandler for HandshakeRequestHandler {
         ProtocolState::Handshaking
     }
 
-    fn handle_packet(&self, packet: &mut Packet, connection: &mut PlayerConnection) {
+    fn handle_packet(&self, server: &mut TachyonServer, connection: &mut PlayerConnection, packet: &mut Packet) {
         let handshake_packet = ServerboundHandshakePacket::read_data(&mut packet.data)
             .expect("Failed to read handshake packet");
         connection.connection_info = Some(ConnectionInfo {

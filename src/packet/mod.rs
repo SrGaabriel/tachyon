@@ -59,7 +59,7 @@ impl Packet {
         let id = VarInt::from_packet_data(buffer)?.into();
 
         let mut data = vec![0; length - VarInt::size(id)];
-        buffer.read_exact(&mut data).unwrap();
+        buffer.read_exact(&mut data)?;
 
         Ok(Packet {
             length,

@@ -7,6 +7,7 @@ use std::rc::Rc;
 use crate::network::connection::PlayerConnection;
 use crate::packet::Packet;
 use crate::protocol::ProtocolHandler;
+use crate::server::TachyonServer;
 
 pub mod connection;
 
@@ -29,18 +30,23 @@ impl TcpServer {
         self.handlers.push(handler);
     }
 
-    pub fn call_handlers(&self, mut packet: Packet, connection: Rc<RefCell<PlayerConnection>>) {
+    pub fn call_handlers(&self, server: &mut TachyonServer, mut packet: Packet, connection: Rc<RefCell<PlayerConnection>>) {
+        let mut handled = false;
         let state = connection.borrow().state;
         let mut handlers = self.handlers.iter().collect::<Vec<_>>();
         handlers.sort_by(|a, b| a.priority().cmp(&b.priority()));
         handlers.iter().for_each(|handler| {
             if handler.state() == state && handler.ids().contains(&packet.id) {
-                handler.handle_packet(&mut packet, &mut connection.borrow_mut());
+                handled = true;
+                handler.handle_packet(server, &mut connection.borrow_mut(), &mut packet);
             }
         });
+        if !handled {
+            println!("Unhandled packet with decimal id {} and hex id {:x}", packet.id, packet.id);
+        }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&mut self, server: &mut TachyonServer) {
         let listener = std::net::TcpListener::bind(self.address).unwrap();
         println!("Starting server on {}", self.address);
 
@@ -49,11 +55,11 @@ impl TcpServer {
             stream.set_nodelay(false).expect("Failed to set nodelay on stream");
             let connection = Rc::new(RefCell::new(PlayerConnection::new(stream.try_clone().unwrap())));
             self.connections.insert(peer, Rc::clone(&connection));
-            self.handle_client(Rc::clone(&connection), stream);
+            self.handle_client(server, Rc::clone(&connection), stream);
         }
     }
 
-    fn handle_client(&self, connection: Rc<RefCell<PlayerConnection>>, mut stream: std::net::TcpStream) {
+    fn handle_client(&self, server: &mut TachyonServer, connection: Rc<RefCell<PlayerConnection>>, mut stream: std::net::TcpStream) {
         loop {
             let mut buffer = [0; 1024];
             let bytes_read = stream.read(&mut buffer).unwrap();
@@ -62,8 +68,7 @@ impl TcpServer {
             }
 
             let packet = Packet::parse(&mut &buffer[..bytes_read]).expect("Failed to parse packet");
-            println!("Received packet with id: {}", packet.id);
-            self.call_handlers(packet, Rc::clone(&connection));
+            self.call_handlers(server, packet, Rc::clone(&connection));
         }
     }
 }

@@ -2,11 +2,12 @@ use std::cmp::Ordering;
 
 use crate::network::connection::PlayerConnection;
 use crate::packet::Packet;
+use crate::server::TachyonServer;
 
 pub mod status;
 pub mod handshake;
 pub mod login;
-mod play;
+pub mod play;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ProtocolState {
@@ -29,8 +30,6 @@ impl ProtocolState {
 }
 
 pub trait ProtocolHandler {
-    fn new() -> Self where Self: Sized;
-
     fn ids(&self) -> Vec<i32>;
 
     fn state(&self) -> ProtocolState;
@@ -39,7 +38,7 @@ pub trait ProtocolHandler {
         ProtocolHandlerPriority::SERVER
     }
 
-    fn handle_packet(&self, packet: &mut Packet, connection: &mut PlayerConnection);
+    fn handle_packet(&self, server: &mut TachyonServer, connection: &mut PlayerConnection, packet: &mut Packet);
 }
 
 pub enum ProtocolHandlerPriority {

@@ -1,20 +1,14 @@
-use std::net::SocketAddr;
-
-use crate::network::TcpServer;
-use crate::protocol::handshake::HandshakeRequestHandler;
-use crate::protocol::login::LoginProtocolHandler;
-use crate::protocol::ProtocolHandler;
-use crate::protocol::status::StatusRequestHandler;
+use crate::server::TachyonServer;
 
 mod network;
 mod packet;
 mod protocol;
 mod game;
+mod server;
 
 fn main() {
-    let mut server = TcpServer::new(SocketAddr::from(([127, 0, 0, 1], 25565)));
-    server.register_handler(Box::new(HandshakeRequestHandler::new()));
-    server.register_handler(Box::new(StatusRequestHandler::new()));
-    server.register_handler(Box::new(LoginProtocolHandler::new()));
+    let mut server = TachyonServer {
+        players: Default::default()
+    };
     server.start();
 }

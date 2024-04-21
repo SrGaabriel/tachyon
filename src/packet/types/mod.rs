@@ -9,9 +9,13 @@ pub mod uuid;
 pub mod vec;
 pub mod boolean;
 pub mod byte;
-pub mod nbt;
+pub mod component;
 pub mod file;
 pub mod identifier;
+pub mod long;
+pub mod enums;
+pub mod position;
+pub mod float;
 
 pub trait PacketStructure where Self: Sized {
     fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError>;

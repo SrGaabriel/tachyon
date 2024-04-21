@@ -2,7 +2,9 @@ use std::fmt::Display;
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NamespaceId {
     pub namespace: String,
     pub value: String
@@ -13,10 +15,17 @@ lazy_static! {
 }
 
 impl NamespaceId {
-    pub fn new(namespace: String, value: String) -> Self {
+    pub fn create(namespace: String, value: String) -> Self {
         NamespaceId {
             namespace,
             value
+        }
+    }
+
+    pub fn new(namespace: &str, value: &str) -> Self {
+        NamespaceId {
+            namespace: namespace.to_string(),
+            value: value.to_string()
         }
     }
 
@@ -36,5 +45,18 @@ impl NamespaceId {
 impl Display for NamespaceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format!("{}:{}", self.namespace, self.value))
+    }
+}
+
+impl Serialize for NamespaceId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'a> Deserialize<'a> for NamespaceId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'a> {
+        let value = String::deserialize(deserializer)?;
+        Ok(NamespaceId::from_string(value))
     }
 }
