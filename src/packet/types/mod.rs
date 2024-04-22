@@ -16,6 +16,7 @@ pub mod long;
 pub mod enums;
 pub mod position;
 pub mod float;
+pub mod mojang;
 
 pub trait PacketStructure where Self: Sized {
     fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError>;

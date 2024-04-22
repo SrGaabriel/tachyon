@@ -23,10 +23,10 @@ macro_rules! define_packet {
                 })
             }
 
-            fn to_packet(&self) -> Packet {
+            fn to_packet(&self) -> crate::packet::Packet {
                 let mut data = Vec::new();
                 self.write_data(&mut data);
-                Packet::new($id, data)
+                crate::packet::Packet::new($id, data)
             }
         }
     };

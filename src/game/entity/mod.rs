@@ -4,6 +4,7 @@ use crate::game::{ChatMode, Gamemode};
 use crate::game::math::position::{Position, Rotation, Vector};
 use crate::game::text::TextComponent;
 use crate::network::connection::PlayerConnection;
+use crate::packet::Packet;
 
 pub trait Player: Send + Sync {
     fn get_username(&self) -> String;
@@ -41,4 +42,6 @@ pub trait Player: Send + Sync {
     fn set_vector(&mut self, vector: Vector);
 
     fn send_message(&mut self, message: TextComponent);
+
+    fn send_packet(&mut self, packet: &mut Packet);
 }

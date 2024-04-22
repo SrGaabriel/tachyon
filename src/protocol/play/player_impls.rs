@@ -5,7 +5,7 @@ use crate::game::entity::Player;
 use crate::game::math::position::{Position, Rotation, Vector};
 use crate::game::text::TextComponent;
 use crate::network::connection::PlayerConnection;
-use crate::packet::PacketDefinition;
+use crate::packet::{Packet, PacketDefinition};
 use crate::protocol::play::chat::ClientboundSystemMessagePacket;
 
 #[derive(Clone)]
@@ -85,6 +85,10 @@ impl Player for ConnectingPlayer {
     }
 
     fn send_message(&mut self, message: TextComponent) {}
+
+    fn send_packet(&mut self, packet: &mut Packet) {
+        self.connection.dispatch(packet);
+    }
 }
 
 pub struct InitialPlayer {
@@ -191,5 +195,9 @@ impl Player for InitialPlayer {
             overlay: false
         };
         self.connection.dispatch(&mut packet.to_packet());
+    }
+
+    fn send_packet(&mut self, packet: &mut Packet) {
+        self.connection.dispatch(packet);
     }
 }

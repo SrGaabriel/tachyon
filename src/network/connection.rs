@@ -1,4 +1,5 @@
 use std::net::TcpStream;
+use rsa::RsaPublicKey;
 use uuid::Uuid;
 use crate::game::entity::Player;
 
@@ -9,8 +10,9 @@ use crate::protocol::ProtocolState;
 pub struct PlayerConnection {
     pub stream: TcpStream,
     pub state: ProtocolState,
+    pub uuid: Option<Uuid>,
     pub connection_info: Option<ConnectionInfo>,
-    pub uuid: Option<Uuid>
+    pub security_info: Option<SecurityInfo>,
 }
 
 #[derive(Clone)]
@@ -20,13 +22,20 @@ pub struct ConnectionInfo {
     pub server_port: u16,
 }
 
+#[derive(Clone)]
+pub struct SecurityInfo {
+    pub verify_token: Vec<u8>,
+    pub public_key: RsaPublicKey
+}
+
 impl PlayerConnection {
     pub fn new(stream: TcpStream) -> Self {
         PlayerConnection {
             stream,
             state: ProtocolState::Handshaking,
+            uuid: None,
             connection_info: None,
-            uuid: None
+            security_info: None
         }
     }
 
@@ -47,6 +56,7 @@ impl Clone for PlayerConnection {
         PlayerConnection {
             stream: self.stream.try_clone().expect("Failed to clone stream"),
             state: self.state,
+            security_info: self.security_info.clone(),
             connection_info: self.connection_info.clone(),
             uuid: self.uuid
         }

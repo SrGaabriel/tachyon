@@ -1,3 +1,5 @@
+pub mod encryption;
+
 use std::fs::File;
 use std::io::Read;
 
@@ -10,10 +12,13 @@ use crate::packet::{Packet, PacketDefinition, ParsePacketError};
 use crate::packet::types::PacketStructure;
 use crate::packet::types::varint::VarInt;
 use crate::protocol::{ProtocolHandler, ProtocolState};
+use crate::protocol::login::encryption::enable_encryption;
 use crate::protocol::play::player_impls::ConnectingPlayer;
 use crate::server::TachyonServer;
 
-pub(crate) struct LoginProtocolHandler;
+pub(crate) struct LoginProtocolHandler {
+    pub encrypted: bool
+}
 
 pub struct ServerboundLoginStartPacket {
     username: String,
@@ -78,7 +83,6 @@ impl ProtocolHandler for LoginProtocolHandler {
     }
 
     fn handle_packet(&self, server: &mut TachyonServer, connection: &mut PlayerConnection, packet: &mut Packet) {
-        println!("Login protocol handler handling packet with id: {}", packet.id);
         let login_start = ServerboundLoginStartPacket::read_data(&mut packet.data)
             .expect("Failed to read login start packet");
         let uuid = login_start.uuid.unwrap_or(
@@ -93,18 +97,26 @@ impl ProtocolHandler for LoginProtocolHandler {
         });
         server.players.insert(uuid, player);
 
-        let login_success = ClientboundLoginSuccessPacket {
-            uuid,
-            username: login_start.username,
-            properties: vec![]
-        };
-
-        connection.dispatch(&mut login_success.to_packet());
-        connection.state = ProtocolState::Play;
-
-        let join_game = create_join_packet();
-        connection.dispatch(&mut join_game.to_packet());
+        if !self.encrypted {
+            allow_login(uuid, login_start.username, connection);
+            return;
+        }
+        enable_encryption(server, connection);
     }
+}
+
+pub(crate) fn allow_login(uuid: Uuid, username: String, connection: &mut PlayerConnection) {
+    let login_success = ClientboundLoginSuccessPacket {
+        uuid,
+        username,
+        properties: vec![]
+    };
+
+    connection.dispatch(&mut login_success.to_packet());
+    connection.state = ProtocolState::Play;
+
+    let join_game = create_join_packet();
+    connection.dispatch(&mut join_game.to_packet());
 }
 
 fn create_join_packet() -> ClientboundJoinGamePacket {

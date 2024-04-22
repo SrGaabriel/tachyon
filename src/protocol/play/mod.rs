@@ -1,10 +1,14 @@
+use std::io::{Read, Write};
+use uuid::Uuid;
 use crate::define_packet;
 use crate::game::{ChatMode, Gamemode};
 use crate::game::entity::Player;
 use crate::game::math::position::{Position, Vector};
+use crate::game::text::TextComponent;
+use crate::mojang::SkinProperty;
 use crate::network::connection::PlayerConnection;
 use crate::network::TcpServer;
-use crate::packet::{Packet, PacketDefinition};
+use crate::packet::{Packet, PacketDefinition, ParsePacketError};
 use crate::packet::types::PacketStructure;
 use crate::packet::types::position::EncodedVector;
 use crate::packet::types::varint::VarInt;
@@ -54,6 +58,19 @@ impl ProtocolHandler for PlayLoginProtocolHandler {
                 angle: (&position).yaw
             }.to_packet();
             connection.dispatch(&mut default_spawn);
+
+            let mut player_info = ClientboundPlayerInfoUpdatePacket::actions(vec![
+                PlayerAction::AddPlayer(
+                    uuid,
+                    server.players.get(&uuid).unwrap().get_username(),
+                    vec![]
+                ),
+                PlayerAction::UpdateListed(
+                    uuid,
+                    true
+                )
+            ]);
+            connection.dispatch(&mut player_info.to_packet());
             return
         }
     }
@@ -74,6 +91,11 @@ define_packet!(0x08, ServerboundClientInformationPacket {
     allow_server_listing: bool
 });
 
+define_packet!(0x3A, ClientboundPlayerInfoUpdatePacket {
+    actions_mask: u8,
+    actions: Vec<PlayerAction>
+});
+
 fn upgrade_player(connecting_player: &dyn Player, client_info_packet: ServerboundClientInformationPacket) -> InitialPlayer {
     InitialPlayer {
         username: connecting_player.get_username(),
@@ -89,5 +111,90 @@ fn upgrade_player(connecting_player: &dyn Player, client_info_packet: Serverboun
         text_filtering_enabled: client_info_packet.enable_text_filtering,
         server_listings_enabled: client_info_packet.allow_server_listing,
         position: Position::override_vector(Vector { x: 0.0, y: 0.0, z: 0.0})
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum PlayerAction {
+    AddPlayer(
+        Uuid,
+        String,
+        Vec<SkinProperty>
+    ),
+    UpdateGamemode(
+        Uuid,
+        Gamemode
+    ),
+    UpdateListed(
+        Uuid,
+        bool
+    ),
+    UpdateLatency(
+        Uuid,
+        i32
+    ),
+    UpdateDisplayName(
+        Uuid,
+        Option<TextComponent>
+    ),
+}
+
+impl PacketStructure for PlayerAction {
+    fn from_packet_data(buffer: &mut dyn Read) -> Result<Self, ParsePacketError> {
+        panic!("PlayerAction cannot be read from packet data");
+    }
+
+    fn write_packet_data(&self, buffer: &mut dyn Write) {
+        match self {
+            PlayerAction::AddPlayer(uuid, name, properties) => {
+                uuid.write_packet_data(buffer);
+                name.write_packet_data(buffer);
+                properties.write_packet_data(buffer)
+            },
+            PlayerAction::UpdateGamemode(uuid, gamemode) => {
+                uuid.write_packet_data(buffer);
+                gamemode.write_packet_data(buffer);
+            },
+            PlayerAction::UpdateListed(uuid, listed) => {
+                uuid.write_packet_data(buffer);
+                listed.write_packet_data(buffer);
+            },
+            PlayerAction::UpdateLatency(uuid, latency) => {
+                uuid.write_packet_data(buffer);
+                VarInt::from(*latency).write_packet_data(buffer);
+            },
+            PlayerAction::UpdateDisplayName(uuid, display_name) => {
+                uuid.write_packet_data(buffer);
+                match display_name {
+                    Some(name) => {
+                        true.write_packet_data(buffer);
+                        name.write_packet_data(buffer);
+                    },
+                    None => {
+                        false.write_packet_data(buffer);
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl ClientboundPlayerInfoUpdatePacket {
+    pub fn actions(actions: Vec<PlayerAction>) -> Self {
+        let mut actions_mask = 0;
+        for action in &actions {
+            match action {
+                PlayerAction::AddPlayer(_, _, _) => actions_mask |= 1 << 0,
+                PlayerAction::UpdateGamemode(_, _) => actions_mask |= 1 << 2,
+                PlayerAction::UpdateListed(_, _) => actions_mask |= 1 << 3,
+                PlayerAction::UpdateLatency(_, _) => actions_mask |= 1 << 4,
+                PlayerAction::UpdateDisplayName(_, _) => actions_mask |= 1 << 5
+            }
+        }
+
+        ClientboundPlayerInfoUpdatePacket {
+            actions_mask,
+            actions
+        }
     }
 }

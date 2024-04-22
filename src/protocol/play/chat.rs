@@ -3,11 +3,11 @@ use crate::game::MessageType;
 use crate::game::text::TextComponent;
 use crate::network::connection::PlayerConnection;
 use crate::packet::{Packet, PacketDefinition};
-use crate::packet::types::component::{JsonTextComponent, NbtTextComponent};
 use crate::packet::types::PacketStructure;
 use crate::packet::types::varint::VarInt;
 use crate::packet::types::vec::FixedSizeArray;
 use crate::protocol::{ProtocolHandler, ProtocolState};
+use crate::protocol::play::{ClientboundPlayerInfoUpdatePacket, PlayerAction};
 use crate::server::TachyonServer;
 
 pub struct ChatProtocolHandler;
@@ -30,12 +30,12 @@ impl ProtocolHandler for ChatProtocolHandler {
         server.broadcast_message(
             text!(format!("<{}> {}", player.get_username(), packet.message)),
             MessageType::Player
-        )
+        );
     }
 }
 
 define_packet!(0x64, ClientboundSystemMessagePacket {
-    message: JsonTextComponent,
+    message: TextComponent,
     overlay: bool
 });
 
