@@ -1,4 +1,6 @@
-use rand::RngCore;
+pub mod compression;
+
+use rand::{Rng, RngCore};
 use rsa::{Pkcs1v15Encrypt, Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey};
 use sha1::Digest;
 
@@ -40,13 +42,10 @@ pub fn decrypt(key: RsaPrivateKey, data: Vec<u8>) -> rsa::errors::Result<Vec<u8>
     key.decrypt(Pkcs1v15Encrypt, &data)
 }
 
-pub fn handicap_byte_vec(vec: &mut Vec<u8>) -> Vec<i8> {
-    let mut rng = rand::thread_rng();
-    let mut handicaps = Vec::new();
-    for i in 0..vec.len() {
-        let handicap = rng.gen_range(-10..10);
-        handicaps.push(handicap);
-        vec[i] = vec[i].wrapping_add(handicap as u8);
+pub fn transform_byte_vec(vec: &mut Vec<u8>) -> Vec<i8> {
+    let mut handicapped = Vec::new();
+    for byte in vec.iter() {
+        handicapped.push(*byte as i8);
     }
-    handicaps
+    handicapped
 }

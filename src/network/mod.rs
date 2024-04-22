@@ -67,7 +67,10 @@ impl TcpServer {
                 break;
             }
 
-            let packet = Packet::parse(&mut &buffer[..bytes_read]).expect("Failed to parse packet");
+            let packet = Packet::parse(
+                &mut &buffer[..bytes_read],
+                connection.borrow().compression
+            ).expect("Failed to parse packet");
             self.call_handlers(server, packet, Rc::clone(&connection));
         }
     }
